@@ -50,6 +50,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -63,6 +64,9 @@ public class IdPManagementUIUtil {
 
     private static final Log log = LogFactory.getLog(IdPManagementUIUtil.class);
     public static final String JWKS_URI = "jwksUri";
+    private static final String BEGIN_CERTIFICATE = "-----BEGIN CERTIFICATE-----";
+    private static final String END_CERTIFICATE = "-----END CERTIFICATE-----";
+    private static final String CHARSET_NAME = "UTF-8";
 
     private static final String META_DATA_SAML = "meta_data_saml";
 
@@ -136,11 +140,9 @@ public class IdPManagementUIUtil {
                     }
                     if ("certFile".equals(key)) {
                         paramMap.put(key, Base64.encode(value));
-                    } else if ("deleteTableId".equals(key)) {
-                        System.out.println("deleteTableId printing " + new String(value));
+                    } else if ("certificateVal".equals(key)) {
                         paramMap.put(key, new String(value));
-                    } else if ("certificateWithRawIdMap".equals(key)) {
-                        System.out.println("certificateWithRawIdMap printing " + toObject(value));
+                        System.out.println("certificateVal printing " + new String(value));
                     } else if ("google_prov_private_key".equals(key)) {
                         paramMap.put(key, Base64.encode(value));
                     } else if (key.startsWith("claimrowname_")) {
@@ -1009,8 +1011,48 @@ public class IdPManagementUIUtil {
         if (oldCertFile != null && certFile == null
                 && (deletePublicCert == null || ("false").equals(deletePublicCert))) {
             certFile = oldCertFile;
-        }
+        } else if (oldCertFile != null && certFile == null
+                && (("true").equals(deletePublicCert))) {
 
+            String decodedOldCertificate = new String(Base64.decode(oldCertFile));
+            String decodedDeletedCertificate = new String(Base64.decode(paramMap.get
+                    ("certificateVal")));
+            if (decodedOldCertificate.contains(END_CERTIFICATE + "\n" + BEGIN_CERTIFICATE)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("More than one encoded certificate has been found");
+                }
+                int numberOfCertificates = StringUtils.countMatches(decodedOldCertificate, END_CERTIFICATE
+                        + "\n" + BEGIN_CERTIFICATE) + 1;
+                StringBuilder certificateInfo = new StringBuilder();
+
+                for (int i = 0; i < numberOfCertificates; i++) {
+                    String certificateVal;
+                    if (i == 0) {
+                        certificateVal = decodedOldCertificate.substring(0,
+                                StringUtils.ordinalIndexOf(decodedOldCertificate, BEGIN_CERTIFICATE, 2));
+
+                    } else {
+                        // Get the i+2'th occurrence of BEGIN_CERTIFICATE.
+                        certificateVal = decodedOldCertificate.substring(StringUtils.ordinalIndexOf(
+                                decodedOldCertificate, BEGIN_CERTIFICATE, i + 1));
+
+                    }
+                    if (!decodedDeletedCertificate.trim().equals(certificateVal.trim())) {
+                        certificateInfo.append(Base64.encode(certificateVal.getBytes
+                                (Charset.forName(CHARSET_NAME))));
+                    }
+                }
+                certFile = certificateInfo.toString();
+            }
+
+
+//            String trimmedOldCertVal = oldCertFile.trim().replace("\n","").replace("\r", "");
+//            String certificateValue = paramMap.get("certificateVal").trim().replace("\n", "").
+//                    replace("\r", "");
+//            String certFileWithExtraCharacter = trimmedOldCertVal.replace(certificateValue.substring(0,
+//                    certificateValue.length()-1),"");
+//            certFile = certFileWithExtraCharacter.substring(1, certFileWithExtraCharacter.length());
+        }
         // set public certificate of the identity provider.
         fedIdp.setCertificate(certFile);
 
