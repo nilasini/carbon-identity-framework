@@ -202,15 +202,7 @@ public class IdentityProvider implements Serializable {
             } else if (FILE_ELEMENT_CLAIM_CONFIG.equals(elementName)) {
                 identityProvider.setClaimConfig(ClaimConfig.build(element));
             } else if (FILE_ELEMENT_CERTIFICATE.equals(elementName)) {
-                // Identity provider's Certificate should contain begin and end statement.
-                if (StringUtils.isBlank(element.getText()) || element.getText().contains(IdentityUtil
-                        .PEM_BEGIN_CERTFICATE)) {
-                    identityProvider.setCertificate(element.getText());
-                } else {
-                    log.warn("Identity provider " + identityProvider.getIdentityProviderName() + " doesn't have " +
-                            "begin and end certificate statement in it's certificate. Therefore certificate is not" +
-                            "set to the identity provider.");
-                }
+                identityProvider.setCertificate(element.getText());
             } else if (FILE_ELEMENT_PERMISSION_AND_ROLE_CONFIG.equals(elementName)) {
                 identityProvider
                         .setPermissionAndRoleConfig(PermissionsAndRoleConfig.build(element));
@@ -490,8 +482,31 @@ public class IdentityProvider implements Serializable {
         if (log.isDebugEnabled()) {
             log.debug("Handling encoded certificates: " + certificateValue);
         }
-        String decodedCertificate = new String(Base64.getDecoder().decode(certificateValue));
-        return createCertificateInfo(decodedCertificate);
+        String decodedCertificate;
+        try {
+            decodedCertificate = new String(Base64.getDecoder().decode(certificateValue));
+        } catch (IllegalArgumentException ex) {
+            // TODO Need to handle the exception handling in proper way.
+            return generateOneTimeEncodedCertificateInfo(certificateValue);
+        }
+        // Handle certificates which are one time encoded but doesn't have BEGIN and END statement
+        if (StringUtils.isNotBlank(decodedCertificate) && !decodedCertificate.startsWith(IdentityUtil.PEM_BEGIN_CERTFICATE)) {
+            return generateOneTimeEncodedCertificateInfo(certificateValue);
+        } else {
+            return createEncodedCertificateInfo(decodedCertificate);
+        }
+    }
+
+    private CertificateInfo[] generateOneTimeEncodedCertificateInfo(String certificateValue) throws NoSuchAlgorithmException {
+
+        String encodedCertVal = Base64.getEncoder().encodeToString(certificateValue.getBytes());
+        String thumbPrint = IdentityApplicationManagementUtil.generateThumbPrint(encodedCertVal);
+        List<CertificateInfo> certificateInfoList = new ArrayList<>();
+        CertificateInfo certificateInfo = new CertificateInfo();
+        certificateInfo.setThumbPrint(thumbPrint);
+        certificateInfo.setCertValue(certificateValue);
+        certificateInfoList.add(certificateInfo);
+        return certificateInfoList.toArray(new CertificateInfo[1]);
     }
 
     /**
@@ -506,16 +521,16 @@ public class IdentityProvider implements Serializable {
         if (log.isDebugEnabled()) {
             log.debug("Handling plain text certificate: " + certificateValue);
         }
-        return createCertificateInfo(certificateValue);
+        return createDecodedCertificateInfo(certificateValue);
     }
 
     /**
-     * create certificate info by assigning certificate value and thumbPrint value.
+     * Create certificate info for encoded certificates.
      * @param decodedCertificate
      * @return
      * @throws NoSuchAlgorithmException
      */
-    private CertificateInfo[] createCertificateInfo(String decodedCertificate) throws
+    private CertificateInfo[] createEncodedCertificateInfo(String decodedCertificate) throws
             NoSuchAlgorithmException {
 
         int numberOfCertificates = StringUtils.countMatches(decodedCertificate, IdentityUtil.PEM_BEGIN_CERTFICATE);
@@ -544,6 +559,39 @@ public class IdentityProvider implements Serializable {
         return certificateInfoArrayList.toArray(new CertificateInfo[numberOfCertificates]);
     }
 
+    /**
+     * Create certificate info for decoded certificates.
+     * @param decodedCertificate
+     * @return
+     * @throws NoSuchAlgorithmException
+     */
+    private CertificateInfo[] createDecodedCertificateInfo(String decodedCertificate) throws
+            NoSuchAlgorithmException {
+
+        int numberOfCertificates = StringUtils.countMatches(decodedCertificate, IdentityUtil.PEM_BEGIN_CERTFICATE);
+        if (numberOfCertificates == 0) {
+            log.error("Uploaded certificate doesn't have " + IdentityUtil.PEM_BEGIN_CERTFICATE + " and " +
+                    IdentityUtil.PEM_END_CERTIFICATE);
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug(numberOfCertificates + " certificates have been found. ");
+            }
+        }
+        List<CertificateInfo> certificateInfoArrayList = new ArrayList<>();
+        for (int ordinal = 1; ordinal <= numberOfCertificates; ordinal++) {
+            String certificateVal;
+            certificateVal = IdentityApplicationManagementUtil.extractCertificate(decodedCertificate, ordinal);
+            CertificateInfo certificateInfo = new CertificateInfo();
+            String thumbPrint = IdentityApplicationManagementUtil.generateThumbPrint(certificateVal);
+            if (log.isDebugEnabled()) {
+                log.debug("ThumbPrint of the certificate is: " + thumbPrint);
+            }
+            certificateInfo.setThumbPrint(thumbPrint);
+            certificateInfo.setCertValue(certificateVal);
+            certificateInfoArrayList.add(certificateInfo);
+        }
+        return certificateInfoArrayList.toArray(new CertificateInfo[numberOfCertificates]);
+    }
     /**
      * @return
      */
