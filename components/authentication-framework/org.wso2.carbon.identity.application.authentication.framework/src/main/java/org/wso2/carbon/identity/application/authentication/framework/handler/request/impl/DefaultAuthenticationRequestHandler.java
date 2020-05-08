@@ -44,6 +44,7 @@ import org.wso2.carbon.identity.application.authentication.framework.services.Po
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.authentication.framework.util.LoginContextManagementUtil;
+import org.wso2.carbon.identity.application.common.model.ServiceProviderProperty;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.idp.mgt.util.IdPManagementUtil;
 import org.wso2.carbon.registry.core.utils.UUIDGenerator;
@@ -559,6 +560,24 @@ public class DefaultAuthenticationRequestHandler implements AuthenticationReques
             if (StringUtils.isNotEmpty(rememberMeParam)) {
                 queryParamsString += "&" + rememberMeParam;
             }
+
+            ServiceProviderProperty[] spProperties =
+                    context.getSequenceConfig().getApplicationConfig().getServiceProvider().getSpProperties();
+            ServiceProviderProperty serviceProviderProperty = new ServiceProviderProperty();
+            serviceProviderProperty.setName("skipConsent");
+            serviceProviderProperty.setValue("true");
+            ServiceProviderProperty[] newspProperties = new ServiceProviderProperty[0];
+
+            if (spProperties != null) {
+                newspProperties = new ServiceProviderProperty[spProperties.length + 1];
+                int i = 0;
+                for (ServiceProviderProperty serviceProviderProperty1:spProperties) {
+                    newspProperties[i] = serviceProviderProperty1;
+                    i++;
+                }
+                newspProperties[spProperties.length] = serviceProviderProperty;
+            }
+            context.getSequenceConfig().getApplicationConfig().getServiceProvider().setSpProperties(newspProperties);
             redirectURL = FrameworkUtils.appendQueryParamsStringToUrl(commonauthCallerPath, queryParamsString);
 
             response.sendRedirect(redirectURL);
