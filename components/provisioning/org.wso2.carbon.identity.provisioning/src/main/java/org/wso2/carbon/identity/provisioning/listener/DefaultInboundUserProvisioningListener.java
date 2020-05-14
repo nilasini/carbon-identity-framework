@@ -156,6 +156,11 @@ public class DefaultInboundUserProvisioningListener extends AbstractIdentityUser
 
         Map<ClaimMapping, List<String>> outboundAttributes = new HashMap<>();
 
+        if (inboundAttributes.get("http://wso2.org/claims/nickname") == null) {
+            inboundAttributes.put("http://wso2.org/claims/nickname", userStoreManager.getUserClaimValue(userName,
+                    "http://wso2.org/claims/nickname", "default" ));
+        }
+
         if (userName != null) {
             outboundAttributes.put(ClaimMapping.build(
                             IdentityProvisioningConstants.USERNAME_CLAIM_URI, null, null, false),
