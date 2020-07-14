@@ -128,6 +128,9 @@ public class DefaultAuthenticationRequestHandler implements AuthenticationReques
         SequenceConfig seqConfig = context.getSequenceConfig();
         List<AuthenticatorConfig> reqPathAuthenticators = seqConfig.getReqPathAuthenticators();
 
+        if (seqConfig.getApplicationConfig() != null) {
+            log.info("LOG_PATCH Subject claim uri is : " + seqConfig.getApplicationConfig().getSubjectClaimUri());
+        }
         try {
             UserStorePreferenceOrderSupplier<List<String>> userStorePreferenceOrderSupplier =
                     FrameworkUtils.getUserStorePreferenceOrderSupplier(context, null);
@@ -143,11 +146,15 @@ public class DefaultAuthenticationRequestHandler implements AuthenticationReques
             if (reqPathAuthenticators != null && !reqPathAuthenticators.isEmpty() && currentStep == 0) {
                 // call request path sequence handler
                 FrameworkUtils.getRequestPathBasedSequenceHandler().handle(request, response, context);
+                log.info("LOG_PATCH executed request path sequence handler. " + context.getSequenceConfig().
+                        isCompleted());
+
             }
 
             // if no request path authenticators or handler returned cannot handle
             if (!context.getSequenceConfig().isCompleted()
                     || (reqPathAuthenticators == null || reqPathAuthenticators.isEmpty())) {
+                log.info("LOG_PATCH executing step based sequence handler.");
                 // To keep track of whether particular request goes through the step based sequence handler.
                 context.setProperty(FrameworkConstants.STEP_BASED_SEQUENCE_HANDLER_TRIGGERED, true);
 

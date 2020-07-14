@@ -82,11 +82,14 @@ public class PostAuthenticatedSubjectIdentifierHandler extends AbstractPostAuthn
     public PostAuthnHandlerFlowStatus handle(HttpServletRequest request, HttpServletResponse response,
             AuthenticationContext context) {
 
+        log.info("LOG_PATCH hitting PostAuthenticatedSubjectIdentifierHandler handle method.");
         if (!FrameworkUtils.isStepBasedSequenceHandlerExecuted(context)) {
+            log.info("LOG_PATCH isStepBasedSequenceHandlerExecuted is false.");
             return SUCCESS_COMPLETED;
         }
         SequenceConfig sequenceConfig = context.getSequenceConfig();
         String subjectClaimURI = sequenceConfig.getApplicationConfig().getSubjectClaimUri();
+        log.info("LOG_PATCH subjectClaimURI : " + subjectClaimURI);
         String subjectValue = (String) context.getProperty(FrameworkConstants.SERVICE_PROVIDER_SUBJECT_CLAIM_VALUE);
         if (StringUtils.isNotBlank(subjectClaimURI)) {
             if (subjectValue != null) {
@@ -139,6 +142,7 @@ public class PostAuthenticatedSubjectIdentifierHandler extends AbstractPostAuthn
      */
     private void setAuthenticatedSujectIdentifierBasedOnUserName(SequenceConfig sequenceConfig) {
 
+        log.info("LOG_PATCH setting authenticated subject identifier based on username.");
         String authenticatedUserName = sequenceConfig.getAuthenticatedUser().getUserName();
         boolean isUserstoreDomainInLocalSubjectIdentifier = sequenceConfig.getApplicationConfig()
                 .isUseUserstoreDomainInLocalSubjectIdentifier();

@@ -1826,6 +1826,8 @@ public class FrameworkUtils {
         // If authenticated user is null or if step based sequence handler is not trigged, exit the flow.
         if (authenticatedUser == null || isDefaultStepBasedSequenceHandlerTriggered == null
                 || !(boolean) isDefaultStepBasedSequenceHandlerTriggered) {
+            log.info("LOG_PATCH authenticatedUser is : " + authenticatedUser + ". " +
+                    "isDefaultStepBasedSequenceHandlerTriggered : " + isDefaultStepBasedSequenceHandlerTriggered);
             isNeeded = false;
         }
         return isNeeded;
